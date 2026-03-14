@@ -1,0 +1,142 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mirofish-ko"
+version = "0.1.0"
+description = "MiroFish-Ko - Multi-agent collective intelligence engine for prediction simulation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "AGPL-3.0" }
+authors = [
+    { name = "MiroFish Team" }
+]
+keywords = [
+    "multi-agent",
+    "simulation",
+    "prediction",
+    "collective-intelligence",
+    "llm",
+    "ai"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Natural Language :: English",
+    "Natural Language :: Korean",
+    "Natural Language :: Chinese (Simplified)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
+[project.urls]
+Homepage = "https://github.com/666ghj/MiroFish"
+Documentation = "https://github.com/666ghj/MiroFish/blob/main/README.md"
+Repository = "https://github.com/666ghj/MiroFish.git"
+Issues = "https://github.com/666ghj/MiroFish/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+backend = [
+    "flask>=3.0.0",
+    "flask-cors>=6.0.0",
+    "openai>=1.0.0",
+    "zep-cloud==3.13.0",
+    "camel-oasis==0.2.5",
+    "camel-ai==0.2.78",
+    "PyMuPDF>=1.24.0",
+    "charset-normalizer>=3.0.0",
+    "chardet>=5.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+]
+frontend = [
+    "nodejs>=18.0.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "dist",
+    "build",
+    ".eggs",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501"]  # Line too long (handled by formatter)
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+known-third-party = ["flask", "openai", "pydantic", "zep_cloud", "camel"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_optional = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "camel_oasis.*",
+    "camel_ai.*",
+    "zep_cloud.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow tests",
+    "asyncio: Async tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/app"]
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest"
+lint = "ruff check ."
+format = "ruff format ."
+type-check = "mypy backend/app"
+check = ["lint", "type-check"]
