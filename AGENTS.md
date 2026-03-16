@@ -112,13 +112,15 @@ MiroFish-Ko/
 | `backend/app/services/ontology_generator.py` | Entity relationship extraction | GraphRAG construction |
 | `backend/app/utils/llm_client.py` | OpenAI SDK wrapper | Supports OpenAI-compatible APIs (Qwen, etc.) |
 | `backend/app/utils/file_parser.py` | PDF/text parsing | Charset detection, multi-format support |
+| `backend/app/utils/logger.py` | Logging setup | Custom logger configuration |
+| `backend/app/utils/retry.py` | Retry logic | Error handling with exponential backoff |
 | `frontend/src/views/Home.vue` | Upload & workflow entry | File upload, prediction requirement input |
 | `frontend/src/views/SimulationRunView.vue` | Simulation execution UI | Real-time progress, agent interaction |
 | `frontend/src/views/ReportView.vue` | Report display | Markdown rendering, interactive report |
 | `frontend/src/views/InteractionView.vue` | Agent conversation | Chat with agents in simulation world |
 | `frontend/src/components/GraphPanel.vue` | Graph visualization | D3-based node/edge rendering with pagination |
 | `.env.example` | Environment template | LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_NAME, ZEP_API_KEY |
-| `docker-compose.yml` | Docker deployment | Frontend (port 3000) + Backend (port 5001) |
+| `MiroFish-Ko/docker-compose.yml` | Docker deployment | Frontend (port 3000) + Backend (port 5001) |
 
 ---
 
