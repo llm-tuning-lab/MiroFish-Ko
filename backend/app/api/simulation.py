@@ -16,27 +16,27 @@ from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..utils.logger import get_logger
 from ..models.project import ProjectManager
 
-logger = get_logger('mirofish.api.simulation')
+logger = get_logger("mirofish.api.simulation")
 
 
-# Interview prompt 
-# Agent도구 호출, 
+# Interview prompt
+# Agent도구 호출,
 INTERVIEW_PROMPT_PREFIX = ", , 도구 호출:"
 
 
 def optimize_interview_prompt(prompt: str) -> str:
     """
     Interview, Agent도구 호출
-    
+
     Args:
-        prompt: 
-        
+        prompt:
+
     Returns:
-        
+
     """
     if not prompt:
         return prompt
-    # 
+    #
     if prompt.startswith(INTERVIEW_PROMPT_PREFIX):
         return prompt
     return f"{INTERVIEW_PROMPT_PREFIX}{prompt}"
@@ -44,130 +44,114 @@ def optimize_interview_prompt(prompt: str) -> str:
 
 # ============== 엔터티읽기API ==============
 
-@simulation_bp.route('/entities/<graph_id>', methods=['GET'])
+
+@simulation_bp.route("/entities/<graph_id>", methods=["GET"])
 def get_graph_entities(graph_id: str):
     """
     그래프진행 중엔터티()
-    
+
     반환엔터티타입노드(LabelsEntity노드)
-    
+
     Query파라미터:
         entity_types: 엔터티타입목록(선택, )
         enrich: 엣지정보(true)
     """
     try:
         if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": "ZEP_API_KEY설정"
-            }), 500
-        
-        entity_types_str = request.args.get('entity_types', '')
-        entity_types = [t.strip() for t in entity_types_str.split(',') if t.strip()] if entity_types_str else None
-        enrich = request.args.get('enrich', 'true').lower() == 'true'
-        
-        logger.info(f"그래프엔터티: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
-        
+            return jsonify({"success": False, "error": "ZEP_API_KEY설정"}), 500
+
+        entity_types_str = request.args.get("entity_types", "")
+        entity_types = (
+            [t.strip() for t in entity_types_str.split(",") if t.strip()]
+            if entity_types_str
+            else None
+        )
+        enrich = request.args.get("enrich", "true").lower() == "true"
+
+        logger.info(
+            f"그래프엔터티: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}"
+        )
+
         reader = ZepEntityReader()
         result = reader.filter_defined_entities(
-            graph_id=graph_id,
-            defined_entity_types=entity_types,
-            enrich_with_edges=enrich
+            graph_id=graph_id, defined_entity_types=entity_types, enrich_with_edges=enrich
         )
-        
-        return jsonify({
-            "success": True,
-            "data": result.to_dict()
-        })
-        
+
+        return jsonify({"success": True, "data": result.to_dict()})
+
     except Exception as e:
         logger.error(f"그래프엔터티실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/entities/<graph_id>/<entity_uuid>', methods=['GET'])
+@simulation_bp.route("/entities/<graph_id>/<entity_uuid>", methods=["GET"])
 def get_entity_detail(graph_id: str, entity_uuid: str):
     """엔터티상세정보"""
     try:
         if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": "ZEP_API_KEY설정"
-            }), 500
-        
+            return jsonify({"success": False, "error": "ZEP_API_KEY설정"}), 500
+
         reader = ZepEntityReader()
         entity = reader.get_entity_with_context(graph_id, entity_uuid)
-        
+
         if not entity:
-            return jsonify({
-                "success": False,
-                "error": f"엔터티가 존재하지 않습니다: {entity_uuid}"
-            }), 404
-        
-        return jsonify({
-            "success": True,
-            "data": entity.to_dict()
-        })
-        
+            return jsonify(
+                {"success": False, "error": f"엔터티가 존재하지 않습니다: {entity_uuid}"}
+            ), 404
+
+        return jsonify({"success": True, "data": entity.to_dict()})
+
     except Exception as e:
         logger.error(f"엔터티실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/entities/<graph_id>/by-type/<entity_type>', methods=['GET'])
+@simulation_bp.route("/entities/<graph_id>/by-type/<entity_type>", methods=["GET"])
 def get_entities_by_type(graph_id: str, entity_type: str):
     """타입엔터티"""
     try:
         if not Config.ZEP_API_KEY:
-            return jsonify({
-                "success": False,
-                "error": "ZEP_API_KEY설정"
-            }), 500
-        
-        enrich = request.args.get('enrich', 'true').lower() == 'true'
-        
+            return jsonify({"success": False, "error": "ZEP_API_KEY설정"}), 500
+
+        enrich = request.args.get("enrich", "true").lower() == "true"
+
         reader = ZepEntityReader()
         entities = reader.get_entities_by_type(
-            graph_id=graph_id,
-            entity_type=entity_type,
-            enrich_with_edges=enrich
+            graph_id=graph_id, entity_type=entity_type, enrich_with_edges=enrich
         )
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "entity_type": entity_type,
-                "count": len(entities),
-                "entities": [e.to_dict() for e in entities]
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "entity_type": entity_type,
+                    "count": len(entities),
+                    "entities": [e.to_dict() for e in entities],
+                },
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"엔터티실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== 시뮬레이션API ==============
 
-@simulation_bp.route('/create', methods=['POST'])
+
+@simulation_bp.route("/create", methods=["POST"])
 def create_simulation():
     """
     시뮬레이션
-    
-    :max_rounds파라미터LLM생성, 
-    
+
+    :max_rounds파라미터LLM생성,
+
     요청(JSON):
         {
             "project_id": "proj_xxxx",      // 필수
@@ -175,7 +159,7 @@ def create_simulation():
             "enable_twitter": true,          // 선택, true
             "enable_reddit": true            // 선택, true
         }
-    
+
     반환:
         {
             "success": true,
@@ -192,83 +176,73 @@ def create_simulation():
     """
     try:
         data = request.get_json() or {}
-        
-        project_id = data.get('project_id')
+
+        project_id = data.get("project_id")
         if not project_id:
-            return jsonify({
-                "success": False,
-                "error": "project_id를 입력해 주세요."
-            }), 400
-        
+            return jsonify({"success": False, "error": "project_id를 입력해 주세요."}), 400
+
         project = ProjectManager.get_project(project_id)
         if not project:
-            return jsonify({
-                "success": False,
-                "error": f"프로젝트가 존재하지 않습니다: {project_id}"
-            }), 404
-        
-        graph_id = data.get('graph_id') or project.graph_id
+            return jsonify(
+                {"success": False, "error": f"프로젝트가 존재하지 않습니다: {project_id}"}
+            ), 404
+
+        graph_id = data.get("graph_id") or project.graph_id
         if not graph_id:
-            return jsonify({
-                "success": False,
-                "error": "프로젝트그래프, 호출 /api/graph/build"
-            }), 400
-        
+            return jsonify(
+                {"success": False, "error": "프로젝트그래프, 호출 /api/graph/build"}
+            ), 400
+
         manager = SimulationManager()
         state = manager.create_simulation(
             project_id=project_id,
             graph_id=graph_id,
-            enable_twitter=data.get('enable_twitter', True),
-            enable_reddit=data.get('enable_reddit', True),
+            enable_twitter=data.get("enable_twitter", True),
+            enable_reddit=data.get("enable_reddit", True),
         )
-        
-        return jsonify({
-            "success": True,
-            "data": state.to_dict()
-        })
-        
+
+        return jsonify({"success": True, "data": state.to_dict()})
+
     except Exception as e:
         logger.error(f"시뮬레이션실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 def _check_simulation_prepared(simulation_id: str) -> tuple:
     """
     시뮬레이션 완료
-    
+
     :
     1. state.json  status  "ready"
     2. 파일:reddit_profiles.json, twitter_profiles.csv, simulation_config.json
-    
+
     :실행(run_*.py) backend/scripts/ 디렉터리, 시뮬레이션디렉터리
-    
+
     Args:
         simulation_id: 시뮬레이션 ID
-        
+
     Returns:
         (is_prepared: bool, info: dict)
     """
     import os
     from ..config import Config
-    
+
     simulation_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-    
+
     # 디렉터리
     if not os.path.exists(simulation_dir):
         return False, {"reason": "시뮬레이션디렉터리존재하지 않습니다"}
-    
+
     # 파일목록(,  backend/scripts/)
     required_files = [
         "state.json",
         "simulation_config.json",
         "reddit_profiles.json",
-        "twitter_profiles.csv"
+        "twitter_profiles.csv",
     ]
-    
+
     # 파일
     existing_files = []
     missing_files = []
@@ -278,27 +252,30 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
             existing_files.append(f)
         else:
             missing_files.append(f)
-    
+
     if missing_files:
         return False, {
             "reason": "누락파일",
             "missing_files": missing_files,
-            "existing_files": existing_files
+            "existing_files": existing_files,
         }
-    
+
     # state.json 상태 확인
     state_file = os.path.join(simulation_dir, "state.json")
     try:
         import json
-        with open(state_file, 'r', encoding='utf-8') as f:
+
+        with open(state_file, "r", encoding="utf-8") as f:
             state_data = json.load(f)
-        
+
         status = state_data.get("status", "")
         config_generated = state_data.get("config_generated", False)
-        
+
         # 상세로그
-        logger.debug(f"시뮬레이션상태: {simulation_id}, status={status}, config_generated={config_generated}")
-        
+        logger.debug(
+            f"시뮬레이션상태: {simulation_id}, status={status}, config_generated={config_generated}"
+        )
+
         #  config_generated=True 파일, 완료
         # 상태설명완료:
         # - ready: 완료, 실행
@@ -312,27 +289,30 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
             # 파일정보
             profiles_file = os.path.join(simulation_dir, "reddit_profiles.json")
             config_file = os.path.join(simulation_dir, "simulation_config.json")
-            
+
             profiles_count = 0
             if os.path.exists(profiles_file):
-                with open(profiles_file, 'r', encoding='utf-8') as f:
+                with open(profiles_file, "r", encoding="utf-8") as f:
                     profiles_data = json.load(f)
                     profiles_count = len(profiles_data) if isinstance(profiles_data, list) else 0
-            
+
             # 상태preparing파일완료, 상태ready
             if status == "preparing":
                 try:
                     state_data["status"] = "ready"
                     from datetime import datetime
+
                     state_data["updated_at"] = datetime.now().isoformat()
-                    with open(state_file, 'w', encoding='utf-8') as f:
+                    with open(state_file, "w", encoding="utf-8") as f:
                         json.dump(state_data, f, ensure_ascii=False, indent=2)
                     logger.info(f"시뮬레이션상태: {simulation_id} preparing -> ready")
                     status = "ready"
                 except Exception as e:
                     logger.warning(f"상태실패: {e}")
-            
-            logger.info(f"시뮬레이션 {simulation_id} : 완료 (status={status}, config_generated={config_generated})")
+
+            logger.info(
+                f"시뮬레이션 {simulation_id} : 완료 (status={status}, config_generated={config_generated})"
+            )
             return True, {
                 "status": status,
                 "entities_count": state_data.get("entities_count", 0),
@@ -341,40 +321,42 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
                 "config_generated": config_generated,
                 "created_at": state_data.get("created_at"),
                 "updated_at": state_data.get("updated_at"),
-                "existing_files": existing_files
+                "existing_files": existing_files,
             }
         else:
-            logger.warning(f"시뮬레이션 {simulation_id} : 완료 (status={status}, config_generated={config_generated})")
+            logger.warning(
+                f"시뮬레이션 {simulation_id} : 완료 (status={status}, config_generated={config_generated})"
+            )
             return False, {
                 "reason": f"상태목록config_generatedfalse: status={status}, config_generated={config_generated}",
                 "status": status,
-                "config_generated": config_generated
+                "config_generated": config_generated,
             }
-            
+
     except Exception as e:
         return False, {"reason": f"읽기상태파일실패: {str(e)}"}
 
 
-@simulation_bp.route('/prepare', methods=['POST'])
+@simulation_bp.route("/prepare", methods=["POST"])
 def prepare_simulation():
     """
     시뮬레이션(작업, LLM생성파라미터)
-    
-    , API반환task_id, 
+
+    , API반환task_id,
      GET /api/simulation/prepare/status 진행률 조회
-    
+
     :
     - 완료, 생성
     - 완료, 반환
     - 생성(force_regenerate=true)
-    
+
     :
     1. 완료
     2. Zep그래프읽기엔터티
     3. 엔터티생성OASIS Agent Profile()
     4. LLM생성시뮬레이션설정()
     5. 저장설정 파일
-    
+
     요청(JSON):
         {
             "simulation_id": "sim_xxxx",                   // 필수, 시뮬레이션 ID
@@ -383,7 +365,7 @@ def prepare_simulation():
             "parallel_profile_count": 5,                  // 선택, 병렬생성, 5
             "force_regenerate": false                     // 선택, 생성, false
         }
-    
+
     반환:
         {
             "success": true,
@@ -400,30 +382,28 @@ def prepare_simulation():
     import os
     from ..models.task import TaskManager, TaskStatus
     from ..config import Config
-    
+
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
+
+        simulation_id = data.get("simulation_id")
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
-        
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
+
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
-        
+
         if not state:
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
-            }), 404
-        
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"}
+            ), 404
+
         # 생성
-        force_regenerate = data.get('force_regenerate', False)
-        logger.info(f"시작 /prepare 요청: simulation_id={simulation_id}, force_regenerate={force_regenerate}")
-        
+        force_regenerate = data.get("force_regenerate", False)
+        logger.info(
+            f"시작 /prepare 요청: simulation_id={simulation_id}, force_regenerate={force_regenerate}"
+        )
+
         # 완료(생성)
         if not force_regenerate:
             logger.debug(f"시뮬레이션 {simulation_id} 완료...")
@@ -431,42 +411,42 @@ def prepare_simulation():
             logger.debug(f": is_prepared={is_prepared}, prepare_info={prepare_info}")
             if is_prepared:
                 logger.info(f"시뮬레이션 {simulation_id} 완료, 생성")
-                return jsonify({
-                    "success": True,
-                    "data": {
-                        "simulation_id": simulation_id,
-                        "status": "ready",
-                        "message": "완료, 생성",
-                        "already_prepared": True,
-                        "prepare_info": prepare_info
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": {
+                            "simulation_id": simulation_id,
+                            "status": "ready",
+                            "message": "완료, 생성",
+                            "already_prepared": True,
+                            "prepare_info": prepare_info,
+                        },
                     }
-                })
+                )
             else:
                 logger.info(f"시뮬레이션 {simulation_id} 완료, 시작작업")
-        
+
         # 프로젝트정보
         project = ProjectManager.get_project(state.project_id)
         if not project:
-            return jsonify({
-                "success": False,
-                "error": f"프로젝트가 존재하지 않습니다: {state.project_id}"
-            }), 404
-        
+            return jsonify(
+                {"success": False, "error": f"프로젝트가 존재하지 않습니다: {state.project_id}"}
+            ), 404
+
         # 시뮬레이션
         simulation_requirement = project.simulation_requirement or ""
         if not simulation_requirement:
-            return jsonify({
-                "success": False,
-                "error": "프로젝트누락시뮬레이션 (simulation_requirement)"
-            }), 400
-        
-        # 
+            return jsonify(
+                {"success": False, "error": "프로젝트누락시뮬레이션 (simulation_requirement)"}
+            ), 400
+
+        #
         document_text = ProjectManager.get_extracted_text(state.project_id) or ""
-        
-        entity_types_list = data.get('entity_types')
-        use_llm_for_profiles = data.get('use_llm_for_profiles', True)
-        parallel_profile_count = data.get('parallel_profile_count', 5)
-        
+
+        entity_types_list = data.get("entity_types")
+        use_llm_for_profiles = data.get("use_llm_for_profiles", True)
+        parallel_profile_count = data.get("parallel_profile_count", 5)
+
         # ========== 엔터티(작업 시작) ==========
         # 호출prepareAgent
         try:
@@ -476,76 +456,74 @@ def prepare_simulation():
             filtered_preview = reader.filter_defined_entities(
                 graph_id=state.graph_id,
                 defined_entity_types=entity_types_list,
-                enrich_with_edges=False  # 엣지정보, 
+                enrich_with_edges=False,  # 엣지정보,
             )
             # 저장엔터티상태()
             state.entities_count = filtered_preview.filtered_count
             state.entity_types = list(filtered_preview.entity_types)
-            logger.info(f"엔터티: {filtered_preview.filtered_count}, 타입: {filtered_preview.entity_types}")
+            logger.info(
+                f"엔터티: {filtered_preview.filtered_count}, 타입: {filtered_preview.entity_types}"
+            )
         except Exception as e:
             logger.warning(f"엔터티실패(작업진행 중: {e}")
             # 실패, 작업
-        
+
         # 작업
         task_manager = TaskManager()
         task_id = task_manager.create_task(
             task_type="simulation_prepare",
-            metadata={
-                "simulation_id": simulation_id,
-                "project_id": state.project_id
-            }
+            metadata={"simulation_id": simulation_id, "project_id": state.project_id},
         )
-        
+
         # 시뮬레이션상태(엔터티)
         state.status = SimulationStatus.PREPARING
         manager._save_simulation_state(state)
-        
+
         # 작업
         def run_prepare():
             try:
                 task_manager.update_task(
-                    task_id,
-                    status=TaskStatus.PROCESSING,
-                    progress=0,
-                    message="시작시뮬레이션..."
+                    task_id, status=TaskStatus.PROCESSING, progress=0, message="시작시뮬레이션..."
                 )
-                
+
                 # 시뮬레이션(진행률)
                 # 진행률
                 stage_details = {}
-                
+
                 def progress_callback(stage, progress, message, **kwargs):
                     # 진행률
                     stage_weights = {
-                        "reading": (0, 20),           # 0-20%
+                        "reading": (0, 20),  # 0-20%
                         "generating_profiles": (20, 70),  # 20-70%
-                        "generating_config": (70, 90),    # 70-90%
-                        "copying_scripts": (90, 100)       # 90-100%
+                        "generating_config": (70, 90),  # 70-90%
+                        "copying_scripts": (90, 100),  # 90-100%
                     }
-                    
+
                     start, end = stage_weights.get(stage, (0, 100))
                     current_progress = int(start + (end - start) * progress / 100)
-                    
+
                     # 상세진행률정보
                     stage_names = {
                         "reading": "읽기그래프엔터티",
                         "generating_profiles": "생성Agent",
                         "generating_config": "생성시뮬레이션설정",
-                        "copying_scripts": "시뮬레이션"
+                        "copying_scripts": "시뮬레이션",
                     }
-                    
-                    stage_index = list(stage_weights.keys()).index(stage) + 1 if stage in stage_weights else 1
+
+                    stage_index = (
+                        list(stage_weights.keys()).index(stage) + 1 if stage in stage_weights else 1
+                    )
                     total_stages = len(stage_weights)
-                    
-                    # 
+
+                    #
                     stage_details[stage] = {
                         "stage_name": stage_names.get(stage, stage),
                         "stage_progress": progress,
                         "current": kwargs.get("current", 0),
                         "total": kwargs.get("total", 0),
-                        "item_name": kwargs.get("item_name", "")
+                        "item_name": kwargs.get("item_name", ""),
                     }
-                    
+
                     # 상세진행률정보
                     detail = stage_details[stage]
                     progress_detail_data = {
@@ -556,10 +534,10 @@ def prepare_simulation():
                         "stage_progress": progress,
                         "current_item": detail["current"],
                         "total_items": detail["total"],
-                        "item_description": message
+                        "item_description": message,
                     }
-                    
-                    # 
+
+                    #
                     if detail["total"] > 0:
                         detailed_message = (
                             f"[{stage_index}/{total_stages}] {stage_names.get(stage, stage)}: "
@@ -567,14 +545,14 @@ def prepare_simulation():
                         )
                     else:
                         detailed_message = f"[{stage_index}/{total_stages}] {stage_names.get(stage, stage)}: {message}"
-                    
+
                     task_manager.update_task(
                         task_id,
                         progress=current_progress,
                         message=detailed_message,
-                        progress_detail=progress_detail_data
+                        progress_detail=progress_detail_data,
                     )
-                
+
                 result_state = manager.prepare_simulation(
                     simulation_id=simulation_id,
                     simulation_requirement=simulation_requirement,
@@ -582,73 +560,67 @@ def prepare_simulation():
                     defined_entity_types=entity_types_list,
                     use_llm_for_profiles=use_llm_for_profiles,
                     progress_callback=progress_callback,
-                    parallel_profile_count=parallel_profile_count
+                    parallel_profile_count=parallel_profile_count,
                 )
-                
+
                 # 작업완료
-                task_manager.complete_task(
-                    task_id,
-                    result=result_state.to_simple_dict()
-                )
-                
+                task_manager.complete_task(task_id, result=result_state.to_simple_dict())
+
             except Exception as e:
                 logger.error(f"시뮬레이션실패: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
-                
+
                 # 시뮬레이션상태실패
                 state = manager.get_simulation(simulation_id)
                 if state:
                     state.status = SimulationStatus.FAILED
                     state.error = str(e)
                     manager._save_simulation_state(state)
-        
+
         # 시작
         thread = threading.Thread(target=run_prepare, daemon=True)
         thread.start()
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "simulation_id": simulation_id,
-                "task_id": task_id,
-                "status": "preparing",
-                "message": "작업 시작,  /api/simulation/prepare/status 진행률 조회",
-                "already_prepared": False,
-                "expected_entities_count": state.entities_count,  # Agent
-                "entity_types": state.entity_types  # 엔터티타입목록
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "task_id": task_id,
+                    "status": "preparing",
+                    "message": "작업 시작,  /api/simulation/prepare/status 진행률 조회",
+                    "already_prepared": False,
+                    "expected_entities_count": state.entities_count,  # Agent
+                    "entity_types": state.entity_types,  # 엔터티타입목록
+                },
             }
-        })
-        
+        )
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 404
-        
+        return jsonify({"success": False, "error": str(e)}), 404
+
     except Exception as e:
         logger.error(f"시작작업실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/prepare/status', methods=['POST'])
+@simulation_bp.route("/prepare/status", methods=["POST"])
 def get_prepare_status():
     """
     조회작업진행률
-    
+
     조회:
     1. task_id조회진행 중작업진행률
     2. simulation_id완료
-    
+
     요청(JSON):
         {
             "task_id": "task_xxxx",          // 선택, prepare반환task_id
             "simulation_id": "sim_xxxx"      // 선택, 시뮬레이션 ID(완료)
         }
-    
+
     반환:
         {
             "success": true,
@@ -663,221 +635,209 @@ def get_prepare_status():
         }
     """
     from ..models.task import TaskManager
-    
+
     try:
         data = request.get_json() or {}
-        
-        task_id = data.get('task_id')
-        simulation_id = data.get('simulation_id')
-        
+
+        task_id = data.get("task_id")
+        simulation_id = data.get("simulation_id")
+
         # simulation_id, 완료
         if simulation_id:
             is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
             if is_prepared:
-                return jsonify({
-                    "success": True,
-                    "data": {
-                        "simulation_id": simulation_id,
-                        "status": "ready",
-                        "progress": 100,
-                        "message": "완료",
-                        "already_prepared": True,
-                        "prepare_info": prepare_info
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": {
+                            "simulation_id": simulation_id,
+                            "status": "ready",
+                            "progress": 100,
+                            "message": "완료",
+                            "already_prepared": True,
+                            "prepare_info": prepare_info,
+                        },
                     }
-                })
-        
+                )
+
         # task_id, 반환오류
         if not task_id:
             if simulation_id:
                 # simulation_id완료
-                return jsonify({
-                    "success": True,
-                    "data": {
-                        "simulation_id": simulation_id,
-                        "status": "not_started",
-                        "progress": 0,
-                        "message": "시작, 호출 /api/simulation/prepare 시작",
-                        "already_prepared": False
+                return jsonify(
+                    {
+                        "success": True,
+                        "data": {
+                            "simulation_id": simulation_id,
+                            "status": "not_started",
+                            "progress": 0,
+                            "message": "시작, 호출 /api/simulation/prepare 시작",
+                            "already_prepared": False,
+                        },
                     }
-                })
-            return jsonify({
-                "success": False,
-                "error": "task_id  simulation_id를 입력해 주세요."
-            }), 400
-        
+                )
+            return jsonify(
+                {"success": False, "error": "task_id  simulation_id를 입력해 주세요."}
+            ), 400
+
         task_manager = TaskManager()
         task = task_manager.get_task(task_id)
-        
+
         if not task:
             # 작업이 존재하지 않습니다, simulation_id, 완료
             if simulation_id:
                 is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
                 if is_prepared:
-                    return jsonify({
-                        "success": True,
-                        "data": {
-                            "simulation_id": simulation_id,
-                            "task_id": task_id,
-                            "status": "ready",
-                            "progress": 100,
-                            "message": "작업 완료",
-                            "already_prepared": True,
-                            "prepare_info": prepare_info
+                    return jsonify(
+                        {
+                            "success": True,
+                            "data": {
+                                "simulation_id": simulation_id,
+                                "task_id": task_id,
+                                "status": "ready",
+                                "progress": 100,
+                                "message": "작업 완료",
+                                "already_prepared": True,
+                                "prepare_info": prepare_info,
+                            },
                         }
-                    })
-            
-            return jsonify({
-                "success": False,
-                "error": f"작업이 존재하지 않습니다: {task_id}"
-            }), 404
-        
+                    )
+
+            return jsonify({"success": False, "error": f"작업이 존재하지 않습니다: {task_id}"}), 404
+
         task_dict = task.to_dict()
         task_dict["already_prepared"] = False
-        
-        return jsonify({
-            "success": True,
-            "data": task_dict
-        })
-        
+
+        return jsonify({"success": True, "data": task_dict})
+
     except Exception as e:
         logger.error(f"조회작업상태실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@simulation_bp.route('/<simulation_id>', methods=['GET'])
+@simulation_bp.route("/<simulation_id>", methods=["GET"])
 def get_simulation(simulation_id: str):
     """시뮬레이션상태"""
     try:
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
-        
+
         if not state:
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
-            }), 404
-        
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"}
+            ), 404
+
         result = state.to_dict()
-        
+
         # 시뮬레이션, 실행설명
         if state.status == SimulationStatus.READY:
             result["run_instructions"] = manager.get_run_instructions(simulation_id)
-        
-        return jsonify({
-            "success": True,
-            "data": result
-        })
-        
+
+        return jsonify({"success": True, "data": result})
+
     except Exception as e:
         logger.error(f"시뮬레이션상태실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/list', methods=['GET'])
+@simulation_bp.route("/list", methods=["GET"])
 def list_simulations():
     """
     시뮬레이션
-    
+
     Query파라미터:
         project_id: 프로젝트 ID(선택)
     """
     try:
-        project_id = request.args.get('project_id')
-        
+        project_id = request.args.get("project_id")
+
         manager = SimulationManager()
         simulations = manager.list_simulations(project_id=project_id)
-        
-        return jsonify({
-            "success": True,
-            "data": [s.to_dict() for s in simulations],
-            "count": len(simulations)
-        })
-        
+
+        return jsonify(
+            {"success": True, "data": [s.to_dict() for s in simulations], "count": len(simulations)}
+        )
+
     except Exception as e:
         logger.error(f"시뮬레이션실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 def _get_report_id_for_simulation(simulation_id: str) -> str:
     """
      simulation  report_id
-    
-     reports 디렉터리,  simulation_id  report, 
+
+     reports 디렉터리,  simulation_id  report,
     반환( created_at )
-    
+
     Args:
         simulation_id: 시뮬레이션 ID
-        
+
     Returns:
         report_id  None
     """
     import json
     from datetime import datetime
-    
+
     # reports 디렉터리:backend/uploads/reports
     # __file__  app/api/simulation.py,  backend/
-    reports_dir = os.path.join(os.path.dirname(__file__), '../../uploads/reports')
+    reports_dir = os.path.join(os.path.dirname(__file__), "../../uploads/reports")
     if not os.path.exists(reports_dir):
         return None
-    
+
     matching_reports = []
-    
+
     try:
         for report_folder in os.listdir(reports_dir):
             report_path = os.path.join(reports_dir, report_folder)
             if not os.path.isdir(report_path):
                 continue
-            
+
             meta_file = os.path.join(report_path, "meta.json")
             if not os.path.exists(meta_file):
                 continue
-            
+
             try:
-                with open(meta_file, 'r', encoding='utf-8') as f:
+                with open(meta_file, "r", encoding="utf-8") as f:
                     meta = json.load(f)
-                
+
                 if meta.get("simulation_id") == simulation_id:
-                    matching_reports.append({
-                        "report_id": meta.get("report_id"),
-                        "created_at": meta.get("created_at", ""),
-                        "status": meta.get("status", "")
-                    })
+                    matching_reports.append(
+                        {
+                            "report_id": meta.get("report_id"),
+                            "created_at": meta.get("created_at", ""),
+                            "status": meta.get("status", ""),
+                        }
+                    )
             except Exception:
                 continue
-        
+
         if not matching_reports:
             return None
-        
+
         # , 반환
         matching_reports.sort(key=lambda x: x.get("created_at", ""), reverse=True)
         return matching_reports[0].get("report_id")
-        
+
     except Exception as e:
         logger.warning(f" simulation {simulation_id}  report 실패: {e}")
         return None
 
 
-@simulation_bp.route('/history', methods=['GET'])
+@simulation_bp.route("/history", methods=["GET"])
 def get_simulation_history():
     """
     과거시뮬레이션목록(프로젝트)
-    
+
     과거프로젝트, 반환프로젝트, 정보시뮬레이션목록
-    
+
     Query파라미터:
         limit: 반환(20)
-    
+
     반환:
         {
             "success": true,
@@ -904,16 +864,16 @@ def get_simulation_history():
         }
     """
     try:
-        limit = request.args.get('limit', 20, type=int)
-        
+        limit = request.args.get("limit", 20, type=int)
+
         manager = SimulationManager()
         simulations = manager.list_simulations()[:limit]
-        
+
         # 시뮬레이션,  Simulation 파일읽기
         enriched_simulations = []
         for sim in simulations:
             sim_dict = sim.to_dict()
-            
+
             # 시뮬레이션설정정보( simulation_config.json 읽기 simulation_requirement)
             config = manager.get_simulation_config(sim.simulation_id)
             if config:
@@ -922,117 +882,108 @@ def get_simulation_history():
                 sim_dict["total_simulation_hours"] = time_config.get("total_simulation_hours", 0)
                 # ()
                 recommended_rounds = int(
-                    time_config.get("total_simulation_hours", 0) * 60 / 
-                    max(time_config.get("minutes_per_round", 60), 1)
+                    time_config.get("total_simulation_hours", 0)
+                    * 60
+                    / max(time_config.get("minutes_per_round", 60), 1)
                 )
             else:
                 sim_dict["simulation_requirement"] = ""
                 sim_dict["total_simulation_hours"] = 0
                 recommended_rounds = 0
-            
+
             # 실행상태( run_state.json 읽기)
             run_state = SimulationRunner.get_run_state(sim.simulation_id)
             if run_state:
                 sim_dict["current_round"] = run_state.current_round
                 sim_dict["runner_status"] = run_state.runner_status.value
-                #  total_rounds, 
-                sim_dict["total_rounds"] = run_state.total_rounds if run_state.total_rounds > 0 else recommended_rounds
+                #  total_rounds,
+                sim_dict["total_rounds"] = (
+                    run_state.total_rounds if run_state.total_rounds > 0 else recommended_rounds
+                )
             else:
                 sim_dict["current_round"] = 0
                 sim_dict["runner_status"] = "idle"
                 sim_dict["total_rounds"] = recommended_rounds
-            
+
             # 프로젝트파일목록(3)
             project = ProjectManager.get_project(sim.project_id)
-            if project and hasattr(project, 'files') and project.files:
+            if project and hasattr(project, "files") and project.files:
                 sim_dict["files"] = [
-                    {"filename": f.get("filename", "파일")} 
-                    for f in project.files[:3]
+                    {"filename": f.get("filename", "파일")} for f in project.files[:3]
                 ]
             else:
                 sim_dict["files"] = []
-            
+
             #  report_id( simulation  report)
             sim_dict["report_id"] = _get_report_id_for_simulation(sim.simulation_id)
-            
-            # 
+
+            #
             sim_dict["version"] = "v1.0.2"
-            
-            # 
+
+            #
             try:
                 created_date = sim_dict.get("created_at", "")[:10]
                 sim_dict["created_date"] = created_date
-            except:
+            except Exception:
                 sim_dict["created_date"] = ""
-            
+
             enriched_simulations.append(sim_dict)
-        
-        return jsonify({
-            "success": True,
-            "data": enriched_simulations,
-            "count": len(enriched_simulations)
-        })
-        
+
+        return jsonify(
+            {"success": True, "data": enriched_simulations, "count": len(enriched_simulations)}
+        )
+
     except Exception as e:
         logger.error(f"과거시뮬레이션실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/profiles', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/profiles", methods=["GET"])
 def get_simulation_profiles(simulation_id: str):
     """
     시뮬레이션Agent Profile
-    
+
     Query파라미터:
         platform: 플랫폼타입(reddit/twitter, reddit)
     """
     try:
-        platform = request.args.get('platform', 'reddit')
-        
+        platform = request.args.get("platform", "reddit")
+
         manager = SimulationManager()
         profiles = manager.get_profiles(simulation_id, platform=platform)
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "platform": platform,
-                "count": len(profiles),
-                "profiles": profiles
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {"platform": platform, "count": len(profiles), "profiles": profiles},
             }
-        })
-        
+        )
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 404
-        
+        return jsonify({"success": False, "error": str(e)}), 404
+
     except Exception as e:
         logger.error(f"Profile실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/profiles/realtime', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/profiles/realtime", methods=["GET"])
 def get_simulation_profiles_realtime(simulation_id: str):
     """
     시뮬레이션Agent Profile(생성진행 중진행률)
-    
+
      /profiles API:
     - 읽기파일,  SimulationManager
     - 생성진행 중
     - 반환(파일, 진행 중생성)
-    
+
     Query파라미터:
         platform: 플랫폼타입(reddit/twitter, reddit)
-    
+
     반환:
         {
             "success": true,
@@ -1051,96 +1002,95 @@ def get_simulation_profiles_realtime(simulation_id: str):
     import json
     import csv
     from datetime import datetime
-    
+
     try:
-        platform = request.args.get('platform', 'reddit')
-        
+        platform = request.args.get("platform", "reddit")
+
         # 시뮬레이션디렉터리
         sim_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-        
+
         if not os.path.exists(sim_dir):
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
-            }), 404
-        
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"}
+            ), 404
+
         # 파일
         if platform == "reddit":
             profiles_file = os.path.join(sim_dir, "reddit_profiles.json")
         else:
             profiles_file = os.path.join(sim_dir, "twitter_profiles.csv")
-        
+
         # 파일
         file_exists = os.path.exists(profiles_file)
         profiles = []
         file_modified_at = None
-        
+
         if file_exists:
             # 파일
             file_stat = os.stat(profiles_file)
             file_modified_at = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
-            
+
             try:
                 if platform == "reddit":
-                    with open(profiles_file, 'r', encoding='utf-8') as f:
+                    with open(profiles_file, "r", encoding="utf-8") as f:
                         profiles = json.load(f)
                 else:
-                    with open(profiles_file, 'r', encoding='utf-8') as f:
+                    with open(profiles_file, "r", encoding="utf-8") as f:
                         reader = csv.DictReader(f)
                         profiles = list(reader)
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning(f"읽기 profiles 파일실패(진행 중쓰기진행 중{e}")
                 profiles = []
-        
+
         # 진행 중생성( state.json )
         is_generating = False
         total_expected = None
-        
+
         state_file = os.path.join(sim_dir, "state.json")
         if os.path.exists(state_file):
             try:
-                with open(state_file, 'r', encoding='utf-8') as f:
+                with open(state_file, "r", encoding="utf-8") as f:
                     state_data = json.load(f)
                     status = state_data.get("status", "")
                     is_generating = status == "preparing"
                     total_expected = state_data.get("entities_count")
             except Exception:
                 pass
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "simulation_id": simulation_id,
-                "platform": platform,
-                "count": len(profiles),
-                "total_expected": total_expected,
-                "is_generating": is_generating,
-                "file_exists": file_exists,
-                "file_modified_at": file_modified_at,
-                "profiles": profiles
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "platform": platform,
+                    "count": len(profiles),
+                    "total_expected": total_expected,
+                    "is_generating": is_generating,
+                    "file_exists": file_exists,
+                    "file_modified_at": file_modified_at,
+                    "profiles": profiles,
+                },
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"Profile실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/config/realtime', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/config/realtime", methods=["GET"])
 def get_simulation_config_realtime(simulation_id: str):
     """
     시뮬레이션설정(생성진행 중진행률)
-    
+
      /config API:
     - 읽기파일,  SimulationManager
     - 생성진행 중
     - 반환(파일, 진행 중생성)
     - 설정생성반환정보
-    
+
     반환:
         {
             "success": true,
@@ -1156,51 +1106,50 @@ def get_simulation_config_realtime(simulation_id: str):
     """
     import json
     from datetime import datetime
-    
+
     try:
         # 시뮬레이션디렉터리
         sim_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-        
+
         if not os.path.exists(sim_dir):
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
-            }), 404
-        
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"}
+            ), 404
+
         # 설정 파일
         config_file = os.path.join(sim_dir, "simulation_config.json")
-        
+
         # 파일
         file_exists = os.path.exists(config_file)
         config = None
         file_modified_at = None
-        
+
         if file_exists:
             # 파일
             file_stat = os.stat(config_file)
             file_modified_at = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
-            
+
             try:
-                with open(config_file, 'r', encoding='utf-8') as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = json.load(f)
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning(f"읽기 config 파일실패(진행 중쓰기진행 중{e}")
                 config = None
-        
+
         # 진행 중생성( state.json )
         is_generating = False
         generation_stage = None
         config_generated = False
-        
+
         state_file = os.path.join(sim_dir, "state.json")
         if os.path.exists(state_file):
             try:
-                with open(state_file, 'r', encoding='utf-8') as f:
+                with open(state_file, "r", encoding="utf-8") as f:
                     state_data = json.load(f)
                     status = state_data.get("status", "")
                     is_generating = status == "preparing"
                     config_generated = state_data.get("config_generated", False)
-                    
+
                     # 현재
                     if is_generating:
                         if state_data.get("profiles_generated", False):
@@ -1211,7 +1160,7 @@ def get_simulation_config_realtime(simulation_id: str):
                         generation_stage = "completed"
             except Exception:
                 pass
-        
+
         # 반환
         response_data = {
             "simulation_id": simulation_id,
@@ -1220,9 +1169,9 @@ def get_simulation_config_realtime(simulation_id: str):
             "is_generating": is_generating,
             "generation_stage": generation_stage,
             "config_generated": config_generated,
-            "config": config
+            "config": config,
         }
-        
+
         # 설정, 핵심정보
         if config:
             response_data["summary"] = {
@@ -1233,28 +1182,23 @@ def get_simulation_config_realtime(simulation_id: str):
                 "has_twitter_config": "twitter_config" in config,
                 "has_reddit_config": "reddit_config" in config,
                 "generated_at": config.get("generated_at"),
-                "llm_model": config.get("llm_model")
+                "llm_model": config.get("llm_model"),
             }
-        
-        return jsonify({
-            "success": True,
-            "data": response_data
-        })
-        
+
+        return jsonify({"success": True, "data": response_data})
+
     except Exception as e:
         logger.error(f"Config실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/config', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/config", methods=["GET"])
 def get_simulation_config(simulation_id: str):
     """
     시뮬레이션설정(LLM생성설정)
-    
+
     반환:
         - time_config: 설정(시뮬레이션, , /)
         - agent_configs: Agent설정(, , )
@@ -1265,61 +1209,48 @@ def get_simulation_config(simulation_id: str):
     try:
         manager = SimulationManager()
         config = manager.get_simulation_config(simulation_id)
-        
+
         if not config:
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션설정존재하지 않습니다, 호출 /prepare API"
-            }), 404
-        
-        return jsonify({
-            "success": True,
-            "data": config
-        })
-        
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션설정존재하지 않습니다, 호출 /prepare API"}
+            ), 404
+
+        return jsonify({"success": True, "data": config})
+
     except Exception as e:
         logger.error(f"설정실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/config/download', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/config/download", methods=["GET"])
 def download_simulation_config(simulation_id: str):
     """다운로드시뮬레이션설정 파일"""
     try:
         manager = SimulationManager()
         sim_dir = manager._get_simulation_dir(simulation_id)
         config_path = os.path.join(sim_dir, "simulation_config.json")
-        
+
         if not os.path.exists(config_path):
-            return jsonify({
-                "success": False,
-                "error": "설정 파일이 존재하지 않습니다, 호출 /prepare API"
-            }), 404
-        
-        return send_file(
-            config_path,
-            as_attachment=True,
-            download_name="simulation_config.json"
-        )
-        
+            return jsonify(
+                {"success": False, "error": "설정 파일이 존재하지 않습니다, 호출 /prepare API"}
+            ), 404
+
+        return send_file(config_path, as_attachment=True, download_name="simulation_config.json")
+
     except Exception as e:
         logger.error(f"다운환경 설정 로드실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/script/<script_name>/download', methods=['GET'])
+@simulation_bp.route("/script/<script_name>/download", methods=["GET"])
 def download_simulation_script(script_name: str):
     """
     다운로드시뮬레이션 실행파일(,  backend/scripts/)
-    
+
     script_name선택:
         - run_twitter_simulation.py
         - run_reddit_simulation.py
@@ -1328,52 +1259,45 @@ def download_simulation_script(script_name: str):
     """
     try:
         #  backend/scripts/ 디렉터리
-        scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../scripts'))
-        
-        # 
+        scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts"))
+
+        #
         allowed_scripts = [
             "run_twitter_simulation.py",
-            "run_reddit_simulation.py", 
+            "run_reddit_simulation.py",
             "run_parallel_simulation.py",
-            "action_logger.py"
+            "action_logger.py",
         ]
-        
+
         if script_name not in allowed_scripts:
-            return jsonify({
-                "success": False,
-                "error": f": {script_name}, 선택: {allowed_scripts}"
-            }), 400
-        
+            return jsonify(
+                {"success": False, "error": f": {script_name}, 선택: {allowed_scripts}"}
+            ), 400
+
         script_path = os.path.join(scripts_dir, script_name)
-        
+
         if not os.path.exists(script_path):
-            return jsonify({
-                "success": False,
-                "error": f"파일이 존재하지 않습니다: {script_name}"
-            }), 404
-        
-        return send_file(
-            script_path,
-            as_attachment=True,
-            download_name=script_name
-        )
-        
+            return jsonify(
+                {"success": False, "error": f"파일이 존재하지 않습니다: {script_name}"}
+            ), 404
+
+        return send_file(script_path, as_attachment=True, download_name=script_name)
+
     except Exception as e:
         logger.error(f"다운로드실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== Profile생성API() ==============
 
-@simulation_bp.route('/generate-profiles', methods=['POST'])
+
+@simulation_bp.route("/generate-profiles", methods=["POST"])
 def generate_profiles():
     """
     그래프생성OASIS Agent Profile(시뮬레이션)
-    
+
     요청(JSON):
         {
             "graph_id": "mirofish_xxxx",     // 필수
@@ -1384,66 +1308,58 @@ def generate_profiles():
     """
     try:
         data = request.get_json() or {}
-        
-        graph_id = data.get('graph_id')
+
+        graph_id = data.get("graph_id")
         if not graph_id:
-            return jsonify({
-                "success": False,
-                "error": "graph_id를 입력해 주세요."
-            }), 400
-        
-        entity_types = data.get('entity_types')
-        use_llm = data.get('use_llm', True)
-        platform = data.get('platform', 'reddit')
-        
+            return jsonify({"success": False, "error": "graph_id를 입력해 주세요."}), 400
+
+        entity_types = data.get("entity_types")
+        use_llm = data.get("use_llm", True)
+        platform = data.get("platform", "reddit")
+
         reader = ZepEntityReader()
         filtered = reader.filter_defined_entities(
-            graph_id=graph_id,
-            defined_entity_types=entity_types,
-            enrich_with_edges=True
+            graph_id=graph_id, defined_entity_types=entity_types, enrich_with_edges=True
         )
-        
+
         if filtered.filtered_count == 0:
-            return jsonify({
-                "success": False,
-                "error": "찾지 못함엔터티"
-            }), 400
-        
+            return jsonify({"success": False, "error": "찾지 못함엔터티"}), 400
+
         generator = OasisProfileGenerator()
         profiles = generator.generate_profiles_from_entities(
-            entities=filtered.entities,
-            use_llm=use_llm
+            entities=filtered.entities, use_llm=use_llm
         )
-        
+
         if platform == "reddit":
             profiles_data = [p.to_reddit_format() for p in profiles]
         elif platform == "twitter":
             profiles_data = [p.to_twitter_format() for p in profiles]
         else:
             profiles_data = [p.to_dict() for p in profiles]
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "platform": platform,
-                "entity_types": list(filtered.entity_types),
-                "count": len(profiles_data),
-                "profiles": profiles_data
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "platform": platform,
+                    "entity_types": list(filtered.entity_types),
+                    "count": len(profiles_data),
+                    "profiles": profiles_data,
+                },
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"생성Profile실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== 시뮬레이션 실행API ==============
 
-@simulation_bp.route('/start', methods=['POST'])
+
+@simulation_bp.route("/start", methods=["POST"])
 def start_simulation():
     """
     시작실행시뮬레이션
@@ -1459,7 +1375,7 @@ def start_simulation():
 
      force 파라미터:
         - , 시뮬레이션실행 중완료, 중지실행로그
-        - :run_state.json, actions.jsonl, simulation.log 
+        - :run_state.json, actions.jsonl, simulation.log
         - 설정 파일(simulation_config.json) profile 파일
         - 실행시뮬레이션
 
@@ -1487,51 +1403,43 @@ def start_simulation():
     try:
         data = request.get_json() or {}
 
-        simulation_id = data.get('simulation_id')
+        simulation_id = data.get("simulation_id")
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
 
-        platform = data.get('platform', 'parallel')
-        max_rounds = data.get('max_rounds')  # 선택:시뮬레이션
-        enable_graph_memory_update = data.get('enable_graph_memory_update', False)  # 선택:그래프
-        force = data.get('force', False)  # 선택:시작
+        platform = data.get("platform", "parallel")
+        max_rounds = data.get("max_rounds")  # 선택:시뮬레이션
+        enable_graph_memory_update = data.get("enable_graph_memory_update", False)  # 선택:그래프
+        force = data.get("force", False)  # 선택:시작
 
         #  max_rounds 파라미터
         if max_rounds is not None:
             try:
                 max_rounds = int(max_rounds)
                 if max_rounds <= 0:
-                    return jsonify({
-                        "success": False,
-                        "error": "max_rounds "
-                    }), 400
+                    return jsonify({"success": False, "error": "max_rounds "}), 400
             except (ValueError, TypeError):
-                return jsonify({
-                    "success": False,
-                    "error": "max_rounds 유효"
-                }), 400
+                return jsonify({"success": False, "error": "max_rounds 유효"}), 400
 
-        if platform not in ['twitter', 'reddit', 'parallel']:
-            return jsonify({
-                "success": False,
-                "error": f"플랫폼타입: {platform}, 선택: twitter/reddit/parallel"
-            }), 400
+        if platform not in ["twitter", "reddit", "parallel"]:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": f"플랫폼타입: {platform}, 선택: twitter/reddit/parallel",
+                }
+            ), 400
 
         # 시뮬레이션
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
 
         if not state:
-            return jsonify({
-                "success": False,
-                "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"
-            }), 404
+            return jsonify(
+                {"success": False, "error": f"시뮬레이션이 존재하지 않습니다: {simulation_id}"}
+            ), 404
 
         force_restarted = False
-        
+
         # 상태:완료, 시작
         if state.status != SimulationStatus.READY:
             # 완료
@@ -1552,10 +1460,12 @@ def start_simulation():
                             except Exception as e:
                                 logger.warning(f"중지시뮬레이션경고: {str(e)}")
                         else:
-                            return jsonify({
-                                "success": False,
-                                "error": f"시뮬레이션실행 중진행 중호출 /stop API중지,  force=true 시작"
-                            }), 400
+                            return jsonify(
+                                {
+                                    "success": False,
+                                    "error": f"시뮬레이션실행 중진행 중호출 /stop API중지,  force=true 시작",
+                                }
+                            ), 400
 
                 # , 실행로그
                 if force:
@@ -1566,16 +1476,20 @@ def start_simulation():
                     force_restarted = True
 
                 # 존재하지 않습니다, 초기화상태 ready
-                logger.info(f"시뮬레이션 {simulation_id} 완료, 초기화상태 ready(상태: {state.status.value})")
+                logger.info(
+                    f"시뮬레이션 {simulation_id} 완료, 초기화상태 ready(상태: {state.status.value})"
+                )
                 state.status = SimulationStatus.READY
                 manager._save_simulation_state(state)
             else:
                 # 완료
-                return jsonify({
-                    "success": False,
-                    "error": f"시뮬레이션, 현재상태: {state.status.value}, 호출 /prepare API"
-                }), 400
-        
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": f"시뮬레이션, 현재상태: {state.status.value}, 호출 /prepare API",
+                    }
+                ), 400
+
         # 그래프 ID(그래프)
         graph_id = None
         if enable_graph_memory_update:
@@ -1586,66 +1500,57 @@ def start_simulation():
                 project = ProjectManager.get_project(state.project_id)
                 if project:
                     graph_id = project.graph_id
-            
+
             if not graph_id:
-                return jsonify({
-                    "success": False,
-                    "error": "그래프유효 graph_id, 프로젝트그래프"
-                }), 400
-            
+                return jsonify(
+                    {"success": False, "error": "그래프유효 graph_id, 프로젝트그래프"}
+                ), 400
+
             logger.info(f"그래프: simulation_id={simulation_id}, graph_id={graph_id}")
-        
+
         # 시작시뮬레이션
         run_state = SimulationRunner.start_simulation(
             simulation_id=simulation_id,
             platform=platform,
             max_rounds=max_rounds,
             enable_graph_memory_update=enable_graph_memory_update,
-            graph_id=graph_id
+            graph_id=graph_id,
         )
-        
+
         # 시뮬레이션상태
         state.status = SimulationStatus.RUNNING
         manager._save_simulation_state(state)
-        
+
         response_data = run_state.to_dict()
         if max_rounds:
-            response_data['max_rounds_applied'] = max_rounds
-        response_data['graph_memory_update_enabled'] = enable_graph_memory_update
-        response_data['force_restarted'] = force_restarted
+            response_data["max_rounds_applied"] = max_rounds
+        response_data["graph_memory_update_enabled"] = enable_graph_memory_update
+        response_data["force_restarted"] = force_restarted
         if enable_graph_memory_update:
-            response_data['graph_id'] = graph_id
-        
-        return jsonify({
-            "success": True,
-            "data": response_data
-        })
-        
+            response_data["graph_id"] = graph_id
+
+        return jsonify({"success": True, "data": response_data})
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
-        
+        return jsonify({"success": False, "error": str(e)}), 400
+
     except Exception as e:
         logger.error(f"시작시뮬레이션실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/stop', methods=['POST'])
+@simulation_bp.route("/stop", methods=["POST"])
 def stop_simulation():
     """
     중지시뮬레이션
-    
+
     요청(JSON):
         {
             "simulation_id": "sim_xxxx"  // 필수, 시뮬레이션 ID
         }
-    
+
     반환:
         {
             "success": true,
@@ -1658,50 +1563,40 @@ def stop_simulation():
     """
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
+
+        simulation_id = data.get("simulation_id")
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
-        
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
+
         run_state = SimulationRunner.stop_simulation(simulation_id)
-        
+
         # 시뮬레이션상태
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if state:
             state.status = SimulationStatus.PAUSED
             manager._save_simulation_state(state)
-        
-        return jsonify({
-            "success": True,
-            "data": run_state.to_dict()
-        })
-        
+
+        return jsonify({"success": True, "data": run_state.to_dict()})
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
-        
+        return jsonify({"success": False, "error": str(e)}), 400
+
     except Exception as e:
         logger.error(f"중지시뮬레이션실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== 상태API ==============
 
-@simulation_bp.route('/<simulation_id>/run-status', methods=['GET'])
+
+@simulation_bp.route("/<simulation_id>/run-status", methods=["GET"])
 def get_run_status(simulation_id: str):
     """
     시뮬레이션 실행상태()
-    
+
     반환:
         {
             "success": true,
@@ -1725,46 +1620,43 @@ def get_run_status(simulation_id: str):
     """
     try:
         run_state = SimulationRunner.get_run_state(simulation_id)
-        
+
         if not run_state:
-            return jsonify({
-                "success": True,
-                "data": {
-                    "simulation_id": simulation_id,
-                    "runner_status": "idle",
-                    "current_round": 0,
-                    "total_rounds": 0,
-                    "progress_percent": 0,
-                    "twitter_actions_count": 0,
-                    "reddit_actions_count": 0,
-                    "total_actions_count": 0,
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "simulation_id": simulation_id,
+                        "runner_status": "idle",
+                        "current_round": 0,
+                        "total_rounds": 0,
+                        "progress_percent": 0,
+                        "twitter_actions_count": 0,
+                        "reddit_actions_count": 0,
+                        "total_actions_count": 0,
+                    },
                 }
-            })
-        
-        return jsonify({
-            "success": True,
-            "data": run_state.to_dict()
-        })
-        
+            )
+
+        return jsonify({"success": True, "data": run_state.to_dict()})
+
     except Exception as e:
         logger.error(f"실행상태실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/run-status/detail', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/run-status/detail", methods=["GET"])
 def get_run_status_detail(simulation_id: str):
     """
     시뮬레이션 실행상세상태()
-    
-    
-    
+
+
+
     Query파라미터:
         platform: 플랫폼(twitter/reddit, 선택)
-    
+
     반환:
         {
             "success": true,
@@ -1794,45 +1686,50 @@ def get_run_status_detail(simulation_id: str):
     """
     try:
         run_state = SimulationRunner.get_run_state(simulation_id)
-        platform_filter = request.args.get('platform')
-        
+        platform_filter = request.args.get("platform")
+
         if not run_state:
-            return jsonify({
-                "success": True,
-                "data": {
-                    "simulation_id": simulation_id,
-                    "runner_status": "idle",
-                    "all_actions": [],
-                    "twitter_actions": [],
-                    "reddit_actions": []
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "simulation_id": simulation_id,
+                        "runner_status": "idle",
+                        "all_actions": [],
+                        "twitter_actions": [],
+                        "reddit_actions": [],
+                    },
                 }
-            })
-        
+            )
+
         # 목록
         all_actions = SimulationRunner.get_all_actions(
-            simulation_id=simulation_id,
-            platform=platform_filter
+            simulation_id=simulation_id, platform=platform_filter
         )
-        
+
         # 플랫폼
-        twitter_actions = SimulationRunner.get_all_actions(
-            simulation_id=simulation_id,
-            platform="twitter"
-        ) if not platform_filter or platform_filter == "twitter" else []
-        
-        reddit_actions = SimulationRunner.get_all_actions(
-            simulation_id=simulation_id,
-            platform="reddit"
-        ) if not platform_filter or platform_filter == "reddit" else []
-        
+        twitter_actions = (
+            SimulationRunner.get_all_actions(simulation_id=simulation_id, platform="twitter")
+            if not platform_filter or platform_filter == "twitter"
+            else []
+        )
+
+        reddit_actions = (
+            SimulationRunner.get_all_actions(simulation_id=simulation_id, platform="reddit")
+            if not platform_filter or platform_filter == "reddit"
+            else []
+        )
+
         # 현재(recent_actions )
         current_round = run_state.current_round
-        recent_actions = SimulationRunner.get_all_actions(
-            simulation_id=simulation_id,
-            platform=platform_filter,
-            round_num=current_round
-        ) if current_round > 0 else []
-        
+        recent_actions = (
+            SimulationRunner.get_all_actions(
+                simulation_id=simulation_id, platform=platform_filter, round_num=current_round
+            )
+            if current_round > 0
+            else []
+        )
+
         # 상태정보
         result = run_state.to_dict()
         result["all_actions"] = [a.to_dict() for a in all_actions]
@@ -1841,33 +1738,28 @@ def get_run_status_detail(simulation_id: str):
         result["rounds_count"] = len(run_state.rounds)
         # recent_actions 현재플랫폼
         result["recent_actions"] = [a.to_dict() for a in recent_actions]
-        
-        return jsonify({
-            "success": True,
-            "data": result
-        })
-        
+
+        return jsonify({"success": True, "data": result})
+
     except Exception as e:
         logger.error(f"상세상태실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/actions', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/actions", methods=["GET"])
 def get_simulation_actions(simulation_id: str):
     """
     시뮬레이션에이전트과거
-    
+
     Query파라미터:
         limit: 반환(100)
         offset: (0)
         platform: 플랫폼(twitter/reddit)
         agent_id: Agent ID
-        round_num: 
-    
+        round_num:
+
     반환:
         {
             "success": true,
@@ -1878,263 +1770,238 @@ def get_simulation_actions(simulation_id: str):
         }
     """
     try:
-        limit = request.args.get('limit', 100, type=int)
-        offset = request.args.get('offset', 0, type=int)
-        platform = request.args.get('platform')
-        agent_id = request.args.get('agent_id', type=int)
-        round_num = request.args.get('round_num', type=int)
-        
+        limit = request.args.get("limit", 100, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        platform = request.args.get("platform")
+        agent_id = request.args.get("agent_id", type=int)
+        round_num = request.args.get("round_num", type=int)
+
         actions = SimulationRunner.get_actions(
             simulation_id=simulation_id,
             limit=limit,
             offset=offset,
             platform=platform,
             agent_id=agent_id,
-            round_num=round_num
+            round_num=round_num,
         )
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "count": len(actions),
-                "actions": [a.to_dict() for a in actions]
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {"count": len(actions), "actions": [a.to_dict() for a in actions]},
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"과거실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/timeline', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/timeline", methods=["GET"])
 def get_simulation_timeline(simulation_id: str):
     """
     시뮬레이션()
-    
+
     진행률
-    
+
     Query파라미터:
         start_round: (0)
         end_round: ()
-    
+
     반환정보
     """
     try:
-        start_round = request.args.get('start_round', 0, type=int)
-        end_round = request.args.get('end_round', type=int)
-        
+        start_round = request.args.get("start_round", 0, type=int)
+        end_round = request.args.get("end_round", type=int)
+
         timeline = SimulationRunner.get_timeline(
-            simulation_id=simulation_id,
-            start_round=start_round,
-            end_round=end_round
+            simulation_id=simulation_id, start_round=start_round, end_round=end_round
         )
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "rounds_count": len(timeline),
-                "timeline": timeline
-            }
-        })
-        
+
+        return jsonify(
+            {"success": True, "data": {"rounds_count": len(timeline), "timeline": timeline}}
+        )
+
     except Exception as e:
         logger.error(f"실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/agent-stats', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/agent-stats", methods=["GET"])
 def get_agent_stats(simulation_id: str):
     """
     Agent정보
-    
-    Agent, 
+
+    Agent,
     """
     try:
         stats = SimulationRunner.get_agent_stats(simulation_id)
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "agents_count": len(stats),
-                "stats": stats
-            }
-        })
-        
+
+        return jsonify({"success": True, "data": {"agents_count": len(stats), "stats": stats}})
+
     except Exception as e:
         logger.error(f"Agent실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== 조회API ==============
 
-@simulation_bp.route('/<simulation_id>/posts', methods=['GET'])
+
+@simulation_bp.route("/<simulation_id>/posts", methods=["GET"])
 def get_simulation_posts(simulation_id: str):
     """
     시뮬레이션진행 중
-    
+
     Query파라미터:
         platform: 플랫폼타입(twitter/reddit)
         limit: 반환(50)
-        offset: 
-    
+        offset:
+
     반환목록(SQLite읽기)
     """
     try:
-        platform = request.args.get('platform', 'reddit')
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
-        
+        platform = request.args.get("platform", "reddit")
+        limit = request.args.get("limit", 50, type=int)
+        offset = request.args.get("offset", 0, type=int)
+
         sim_dir = os.path.join(
-            os.path.dirname(__file__),
-            f'../../uploads/simulations/{simulation_id}'
+            os.path.dirname(__file__), f"../../uploads/simulations/{simulation_id}"
         )
-        
+
         db_file = f"{platform}_simulation.db"
         db_path = os.path.join(sim_dir, db_file)
-        
+
         if not os.path.exists(db_path):
-            return jsonify({
-                "success": True,
-                "data": {
-                    "platform": platform,
-                    "count": 0,
-                    "posts": [],
-                    "message": "존재하지 않습니다, 시뮬레이션 실행"
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "platform": platform,
+                        "count": 0,
+                        "posts": [],
+                        "message": "존재하지 않습니다, 시뮬레이션 실행",
+                    },
                 }
-            })
-        
+            )
+
         import sqlite3
+
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM post 
                 ORDER BY created_at DESC 
                 LIMIT ? OFFSET ?
-            """, (limit, offset))
-            
+            """,
+                (limit, offset),
+            )
+
             posts = [dict(row) for row in cursor.fetchall()]
-            
+
             cursor.execute("SELECT COUNT(*) FROM post")
             total = cursor.fetchone()[0]
-            
+
         except sqlite3.OperationalError:
             posts = []
             total = 0
-        
+
         conn.close()
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "platform": platform,
-                "total": total,
-                "count": len(posts),
-                "posts": posts
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {"platform": platform, "total": total, "count": len(posts), "posts": posts},
             }
-        })
-        
+        )
+
     except Exception as e:
         logger.error(f"실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/<simulation_id>/comments', methods=['GET'])
+@simulation_bp.route("/<simulation_id>/comments", methods=["GET"])
 def get_simulation_comments(simulation_id: str):
     """
     시뮬레이션진행 중(Reddit)
-    
+
     Query파라미터:
         post_id: ID(선택)
         limit: 반환
-        offset: 
+        offset:
     """
     try:
-        post_id = request.args.get('post_id')
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
-        
+        post_id = request.args.get("post_id")
+        limit = request.args.get("limit", 50, type=int)
+        offset = request.args.get("offset", 0, type=int)
+
         sim_dir = os.path.join(
-            os.path.dirname(__file__),
-            f'../../uploads/simulations/{simulation_id}'
+            os.path.dirname(__file__), f"../../uploads/simulations/{simulation_id}"
         )
-        
+
         db_path = os.path.join(sim_dir, "reddit_simulation.db")
-        
+
         if not os.path.exists(db_path):
-            return jsonify({
-                "success": True,
-                "data": {
-                    "count": 0,
-                    "comments": []
-                }
-            })
-        
+            return jsonify({"success": True, "data": {"count": 0, "comments": []}})
+
         import sqlite3
+
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         try:
             if post_id:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT * FROM comment 
                     WHERE post_id = ?
                     ORDER BY created_at DESC 
                     LIMIT ? OFFSET ?
-                """, (post_id, limit, offset))
+                """,
+                    (post_id, limit, offset),
+                )
             else:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT * FROM comment 
                     ORDER BY created_at DESC 
                     LIMIT ? OFFSET ?
-                """, (limit, offset))
-            
+                """,
+                    (limit, offset),
+                )
+
             comments = [dict(row) for row in cursor.fetchall()]
-            
+
         except sqlite3.OperationalError:
             comments = []
-        
+
         conn.close()
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "count": len(comments),
-                "comments": comments
-            }
-        })
-        
+
+        return jsonify({"success": True, "data": {"count": len(comments), "comments": comments}})
+
     except Exception as e:
         logger.error(f"실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
 # ============== Interview 인터뷰API ==============
 
-@simulation_bp.route('/interview', methods=['POST'])
+
+@simulation_bp.route("/interview", methods=["POST"])
 def interview_agent():
     """
     인터뷰Agent
@@ -2187,83 +2054,59 @@ def interview_agent():
     """
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
-        agent_id = data.get('agent_id')
-        prompt = data.get('prompt')
-        platform = data.get('platform')  # 선택:twitter/reddit/None
-        timeout = data.get('timeout', 60)
-        
+
+        simulation_id = data.get("simulation_id")
+        agent_id = data.get("agent_id")
+        prompt = data.get("prompt")
+        platform = data.get("platform")  # 선택:twitter/reddit/None
+        timeout = data.get("timeout", 60)
+
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
-        
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
+
         if agent_id is None:
-            return jsonify({
-                "success": False,
-                "error": "agent_id를 입력해 주세요."
-            }), 400
-        
+            return jsonify({"success": False, "error": "agent_id를 입력해 주세요."}), 400
+
         if not prompt:
-            return jsonify({
-                "success": False,
-                "error": "prompt(를 입력해 주세요.인터뷰질문)"
-            }), 400
-        
+            return jsonify({"success": False, "error": "prompt(를 입력해 주세요.인터뷰질문)"}), 400
+
         # platform파라미터
         if platform and platform not in ("twitter", "reddit"):
-            return jsonify({
-                "success": False,
-                "error": "platform 파라미터 'twitter'  'reddit'"
-            }), 400
-        
+            return jsonify(
+                {"success": False, "error": "platform 파라미터 'twitter'  'reddit'"}
+            ), 400
+
         # 상태
         if not SimulationRunner.check_env_alive(simulation_id):
-            return jsonify({
-                "success": False,
-                "error": "시뮬레이션 실행.시뮬레이션 완료."
-            }), 400
-        
+            return jsonify({"success": False, "error": "시뮬레이션 실행.시뮬레이션 완료."}), 400
+
         # prompt, Agent도구 호출
         optimized_prompt = optimize_interview_prompt(prompt)
-        
+
         result = SimulationRunner.interview_agent(
             simulation_id=simulation_id,
             agent_id=agent_id,
             prompt=optimized_prompt,
             platform=platform,
-            timeout=timeout
+            timeout=timeout,
         )
 
-        return jsonify({
-            "success": result.get("success", False),
-            "data": result
-        })
-        
+        return jsonify({"success": result.get("success", False), "data": result})
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
-        
+        return jsonify({"success": False, "error": str(e)}), 400
+
     except TimeoutError as e:
-        return jsonify({
-            "success": False,
-            "error": f"Interview: {str(e)}"
-        }), 504
-        
+        return jsonify({"success": False, "error": f"Interview: {str(e)}"}), 504
+
     except Exception as e:
         logger.error(f"Interview실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/interview/batch', methods=['POST'])
+@simulation_bp.route("/interview/batch", methods=["POST"])
 def interview_agents_batch():
     """
     인터뷰Agent
@@ -2310,98 +2153,72 @@ def interview_agents_batch():
     try:
         data = request.get_json() or {}
 
-        simulation_id = data.get('simulation_id')
-        interviews = data.get('interviews')
-        platform = data.get('platform')  # 선택:twitter/reddit/None
-        timeout = data.get('timeout', 120)
+        simulation_id = data.get("simulation_id")
+        interviews = data.get("interviews")
+        platform = data.get("platform")  # 선택:twitter/reddit/None
+        timeout = data.get("timeout", 120)
 
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
 
         if not interviews or not isinstance(interviews, list):
-            return jsonify({
-                "success": False,
-                "error": "interviews(를 입력해 주세요.인터뷰목록)"
-            }), 400
+            return jsonify(
+                {"success": False, "error": "interviews(를 입력해 주세요.인터뷰목록)"}
+            ), 400
 
         # platform파라미터
         if platform and platform not in ("twitter", "reddit"):
-            return jsonify({
-                "success": False,
-                "error": "platform 파라미터 'twitter'  'reddit'"
-            }), 400
+            return jsonify(
+                {"success": False, "error": "platform 파라미터 'twitter'  'reddit'"}
+            ), 400
 
         # 인터뷰
         for i, interview in enumerate(interviews):
-            if 'agent_id' not in interview:
-                return jsonify({
-                    "success": False,
-                    "error": f"인터뷰목록{i+1}누락 agent_id"
-                }), 400
-            if 'prompt' not in interview:
-                return jsonify({
-                    "success": False,
-                    "error": f"인터뷰목록{i+1}누락 prompt"
-                }), 400
+            if "agent_id" not in interview:
+                return jsonify({"success": False, "error": f"인터뷰목록{i + 1}누락 agent_id"}), 400
+            if "prompt" not in interview:
+                return jsonify({"success": False, "error": f"인터뷰목록{i + 1}누락 prompt"}), 400
             # platform()
-            item_platform = interview.get('platform')
+            item_platform = interview.get("platform")
             if item_platform and item_platform not in ("twitter", "reddit"):
-                return jsonify({
-                    "success": False,
-                    "error": f"인터뷰목록{i+1}platform 'twitter'  'reddit'"
-                }), 400
+                return jsonify(
+                    {"success": False, "error": f"인터뷰목록{i + 1}platform 'twitter'  'reddit'"}
+                ), 400
 
         # 상태
         if not SimulationRunner.check_env_alive(simulation_id):
-            return jsonify({
-                "success": False,
-                "error": "시뮬레이션 실행.시뮬레이션 완료."
-            }), 400
+            return jsonify({"success": False, "error": "시뮬레이션 실행.시뮬레이션 완료."}), 400
 
         # 인터뷰prompt, Agent도구 호출
         optimized_interviews = []
         for interview in interviews:
             optimized_interview = interview.copy()
-            optimized_interview['prompt'] = optimize_interview_prompt(interview.get('prompt', ''))
+            optimized_interview["prompt"] = optimize_interview_prompt(interview.get("prompt", ""))
             optimized_interviews.append(optimized_interview)
 
         result = SimulationRunner.interview_agents_batch(
             simulation_id=simulation_id,
             interviews=optimized_interviews,
             platform=platform,
-            timeout=timeout
+            timeout=timeout,
         )
 
-        return jsonify({
-            "success": result.get("success", False),
-            "data": result
-        })
+        return jsonify({"success": result.get("success", False), "data": result})
 
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return jsonify({"success": False, "error": str(e)}), 400
 
     except TimeoutError as e:
-        return jsonify({
-            "success": False,
-            "error": f"Interview: {str(e)}"
-        }), 504
+        return jsonify({"success": False, "error": f"Interview: {str(e)}"}), 504
 
     except Exception as e:
         logger.error(f"Interview실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/interview/all', methods=['POST'])
+@simulation_bp.route("/interview/all", methods=["POST"])
 def interview_all_agents():
     """
     인터뷰 - 질문인터뷰Agent
@@ -2437,74 +2254,50 @@ def interview_all_agents():
     try:
         data = request.get_json() or {}
 
-        simulation_id = data.get('simulation_id')
-        prompt = data.get('prompt')
-        platform = data.get('platform')  # 선택:twitter/reddit/None
-        timeout = data.get('timeout', 180)
+        simulation_id = data.get("simulation_id")
+        prompt = data.get("prompt")
+        platform = data.get("platform")  # 선택:twitter/reddit/None
+        timeout = data.get("timeout", 180)
 
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
 
         if not prompt:
-            return jsonify({
-                "success": False,
-                "error": "prompt(를 입력해 주세요.인터뷰질문)"
-            }), 400
+            return jsonify({"success": False, "error": "prompt(를 입력해 주세요.인터뷰질문)"}), 400
 
         # platform파라미터
         if platform and platform not in ("twitter", "reddit"):
-            return jsonify({
-                "success": False,
-                "error": "platform 파라미터 'twitter'  'reddit'"
-            }), 400
+            return jsonify(
+                {"success": False, "error": "platform 파라미터 'twitter'  'reddit'"}
+            ), 400
 
         # 상태
         if not SimulationRunner.check_env_alive(simulation_id):
-            return jsonify({
-                "success": False,
-                "error": "시뮬레이션 실행.시뮬레이션 완료."
-            }), 400
+            return jsonify({"success": False, "error": "시뮬레이션 실행.시뮬레이션 완료."}), 400
 
         # prompt, Agent도구 호출
         optimized_prompt = optimize_interview_prompt(prompt)
 
         result = SimulationRunner.interview_all_agents(
-            simulation_id=simulation_id,
-            prompt=optimized_prompt,
-            platform=platform,
-            timeout=timeout
+            simulation_id=simulation_id, prompt=optimized_prompt, platform=platform, timeout=timeout
         )
 
-        return jsonify({
-            "success": result.get("success", False),
-            "data": result
-        })
+        return jsonify({"success": result.get("success", False), "data": result})
 
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return jsonify({"success": False, "error": str(e)}), 400
 
     except TimeoutError as e:
-        return jsonify({
-            "success": False,
-            "error": f"Interview: {str(e)}"
-        }), 504
+        return jsonify({"success": False, "error": f"Interview: {str(e)}"}), 504
 
     except Exception as e:
         logger.error(f"Interview실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/interview/history', methods=['POST'])
+@simulation_bp.route("/interview/history", methods=["POST"])
 def get_interview_history():
     """
     Interview과거
@@ -2540,43 +2333,29 @@ def get_interview_history():
     """
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
-        platform = data.get('platform')  # 반환플랫폼과거
-        agent_id = data.get('agent_id')
-        limit = data.get('limit', 100)
-        
+
+        simulation_id = data.get("simulation_id")
+        platform = data.get("platform")  # 반환플랫폼과거
+        agent_id = data.get("agent_id")
+        limit = data.get("limit", 100)
+
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
 
         history = SimulationRunner.get_interview_history(
-            simulation_id=simulation_id,
-            platform=platform,
-            agent_id=agent_id,
-            limit=limit
+            simulation_id=simulation_id, platform=platform, agent_id=agent_id, limit=limit
         )
 
-        return jsonify({
-            "success": True,
-            "data": {
-                "count": len(history),
-                "history": history
-            }
-        })
+        return jsonify({"success": True, "data": {"count": len(history), "history": history}})
 
     except Exception as e:
         logger.error(f"Interview과거실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/env-status', methods=['POST'])
+@simulation_bp.route("/env-status", methods=["POST"])
 def get_env_status():
     """
     시뮬레이션상태
@@ -2602,17 +2381,14 @@ def get_env_status():
     """
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
-        
+
+        simulation_id = data.get("simulation_id")
+
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
 
         env_alive = SimulationRunner.check_env_alive(simulation_id)
-        
+
         # 상세상태정보
         env_status = SimulationRunner.get_env_status_detail(simulation_id)
 
@@ -2621,42 +2397,42 @@ def get_env_status():
         else:
             message = "실행"
 
-        return jsonify({
-            "success": True,
-            "data": {
-                "simulation_id": simulation_id,
-                "env_alive": env_alive,
-                "twitter_available": env_status.get("twitter_available", False),
-                "reddit_available": env_status.get("reddit_available", False),
-                "message": message
+        return jsonify(
+            {
+                "success": True,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "env_alive": env_alive,
+                    "twitter_available": env_status.get("twitter_available", False),
+                    "reddit_available": env_status.get("reddit_available", False),
+                    "message": message,
+                },
             }
-        })
+        )
 
     except Exception as e:
         logger.error(f"상태실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
 
 
-@simulation_bp.route('/close-env', methods=['POST'])
+@simulation_bp.route("/close-env", methods=["POST"])
 def close_simulation_env():
     """
     시뮬레이션
-    
+
     시뮬레이션, .
-    
-    : /stop API, /stop , 
+
+    : /stop API, /stop ,
     API시뮬레이션.
-    
+
     요청(JSON):
         {
             "simulation_id": "sim_xxxx",  // 필수, 시뮬레이션 ID
             "timeout": 30                  // 선택, (), 30
         }
-    
+
     반환:
         {
             "success": true,
@@ -2669,43 +2445,29 @@ def close_simulation_env():
     """
     try:
         data = request.get_json() or {}
-        
-        simulation_id = data.get('simulation_id')
-        timeout = data.get('timeout', 30)
-        
+
+        simulation_id = data.get("simulation_id")
+        timeout = data.get("timeout", 30)
+
         if not simulation_id:
-            return jsonify({
-                "success": False,
-                "error": "simulation_id를 입력해 주세요."
-            }), 400
-        
-        result = SimulationRunner.close_simulation_env(
-            simulation_id=simulation_id,
-            timeout=timeout
-        )
-        
+            return jsonify({"success": False, "error": "simulation_id를 입력해 주세요."}), 400
+
+        result = SimulationRunner.close_simulation_env(simulation_id=simulation_id, timeout=timeout)
+
         # 시뮬레이션상태
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if state:
             state.status = SimulationStatus.COMPLETED
             manager._save_simulation_state(state)
-        
-        return jsonify({
-            "success": result.get("success", False),
-            "data": result
-        })
-        
+
+        return jsonify({"success": result.get("success", False), "data": result})
+
     except ValueError as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
-        
+        return jsonify({"success": False, "error": str(e)}), 400
+
     except Exception as e:
         logger.error(f"실패: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return jsonify(
+            {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+        ), 500
